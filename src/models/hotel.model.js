@@ -1,59 +1,67 @@
 const mongoose = require("mongoose");
 
-const guestSchema = new mongoose.Schema(
+const hotelSchema = new mongoose.Schema(
   {
-    firstName: {
+    name: {
       type: String,
       required: true,
       trim: true,
     },
 
-    lastName: {
+    description: {
       type: String,
       required: true,
-      trim: true,
     },
 
-    email: {
+    address: {
       type: String,
       required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
     },
 
-    password: {
+    city: {
       type: String,
       required: true,
-      minlength: 6,
+    },
+
+    state: {
+      type: String,
+      required: true,
+    },
+
+    country: {
+      type: String,
+      required: true,
     },
 
     phone: {
       type: String,
       required: true,
-      trim: true,
     },
 
-    country: {
+    email: {
       type: String,
       trim: true,
+      lowercase: true,
     },
 
-    loyaltyPoints: {
-      type: Number,
-      default: 0,
-      min: 0,
+    amenities: {
+      type: [String],
+      default: [],
     },
 
-    loyaltyTier: {
-      type: String,
-      enum: ["Standard", "Silver", "Gold", "Platinum"],
-      default: "Standard",
+    images: {
+      type: [String],
+      default: [],
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
 );
 
-const Guest = mongoose.model("Guest", guestSchema);
+const Hotel = mongoose.model("Hotel", hotelSchema);
 
-module.exports = Guest;
+module.exports = Hotel;
