@@ -117,7 +117,7 @@ const createHotel = async (req, res) => {
 
 
 module.exports = {
+    createHotel,
     getAllHotels,
     getHotelById,
-    createHotel,
 };
