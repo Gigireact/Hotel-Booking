@@ -7,12 +7,20 @@ const guestRoutes = require("./routes/guest.routes");
 const hotelRoutes = require("./routes/hotel.routes");
 const roomRoutes = require("./routes/room.routes");
 const bookingRoutes = require("./routes/booking.routes");
-const paymentRoutes = require("./routes/payment.routes");
+const paymentRoutes = require("./routes/payment.routes.js");
 
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, res, buffer) => {
+      if (req.originalUrl.split("?")[0] === "/api/payment/webhook") {
+        req.rawBody = Buffer.from(buffer);
+      }
+    },
+  })
+);
 app.use(morgan("dev"));
 
 // Authentication routes
@@ -21,7 +29,7 @@ app.use("/api/guests", guestRoutes);
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/bookings", bookingRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
 
 
 app.get("/", (req, res) => {
