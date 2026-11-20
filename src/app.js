@@ -5,6 +5,8 @@ const morgan = require("morgan");
 const authRoutes = require("./routes/auth.routes");
 const guestRoutes = require("./routes/guest.routes");
 const hotelRoutes = require("./routes/hotel.routes");
+const roomRoutes = require("./routes/room.routes");
+const bookingRoutes = require("./routes/booking.routes");
 
 const app = express();
 
@@ -16,6 +18,9 @@ app.use(morgan("dev"));
 app.use("/api/auth", authRoutes);
 app.use("/api/guests", guestRoutes);
 app.use("/api/hotels", hotelRoutes);
+app.use("/api/rooms", roomRoutes);
+app.use("/api/bookings", bookingRoutes);
+
 
 app.get("/", (req, res) => {
   res.status(200).json({
