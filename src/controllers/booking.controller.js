@@ -1,4 +1,3 @@
-
 const Booking = require("../models/booking.model");
 const Room = require("../models/room.model");
 const Hotel = require("../models/hotel.model");
