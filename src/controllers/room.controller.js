@@ -79,6 +79,64 @@ const createRoom = async (req, res) => {
   }
 };
 
+// ADD IMAGES TO AN EXISTING ROOM
+const addRoomImages = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!require("mongoose").Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid room ID",
+      });
+    }
+
+    const uploadedImages = req.files
+      ? req.files.map((file) => file.path)
+      : [];
+
+    if (uploadedImages.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload at least one image",
+      });
+    }
+
+    const room = await Room.findByIdAndUpdate(
+      roomId,
+      {
+        $push: {
+          images: { $each: uploadedImages },
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "Room not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Room images added successfully",
+      room,
+    });
+  } catch (error) {
+    console.error("Add room images error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to add room images",
+    });
+  }
+};
+
 
 // GET ALL ROOMS IN A HOTEL
 const getHotelRooms = async (req, res) => {
@@ -187,6 +245,7 @@ const checkRoomAvailability = async (req, res) => {
 
 module.exports = {
   createRoom,
+  addRoomImages,
   getHotelRooms,
   checkRoomAvailability,
 };
