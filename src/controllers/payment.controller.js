@@ -10,13 +10,38 @@ const paystackHeaders = () => ({
   "Content-Type": "application/json",
 });
 
-const respondWithError = (res, error, details = {}) => {
+const respondWithError = (res, error) => {
+  console.error("Payment error:", {
+    message: error.message,
+    status: error.response?.status,
+    code: error.code,
+  });
   const status = error.response ? 502 : 500;
+
   return res.status(status).json({
     success: false,
-    message: error.response?.data?.message || error.message,
-    ...details,
+    message:
+      status === 502
+        ? "Payment service is temporarily unavailable"
+        : "An unexpected error occurred. Please try again later.",
   });
+};
+
+const getSafePaymentData = (payment) => ({
+  reference: payment.paymentReference,
+  paymentStatus: payment.paymentStatus,
+  amount: payment.amount,
+  currency: payment.currency,
+  paidAt: payment.paidAt || null,
+});
+
+const getSafeBookingData = (booking) => {
+  if (!booking) return null;
+
+  return {
+    bookingId: booking._id,
+    bookingStatus: booking.bookingStatus,
+  };
 };
 
 const transactionMatchesPayment = (transaction, payment) =>
@@ -69,7 +94,12 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
     );
 
     if (update.modifiedCount === 1) {
-      return { kind: "confirmed", payment, booking };
+        booking = await Booking.findOne({
+            _id: payment.booking,
+            guest: payment.guest,
+        });
+
+        return { kind: "confirmed", payment, booking };
     }
 
     booking = await Booking.findOne({
@@ -153,14 +183,15 @@ const sendExistingPayment = (res, payment) => {
     });
   }
 
-  return res.status(200).json({
+    return res.status(200).json({
     success: true,
     message: "Reusing the existing payment attempt",
-    authorizationUrl: payment.authorizationUrl,
-    accessCode: payment.accessCode,
-    reference: payment.paymentReference,
-    payment,
-  });
+    data: {
+        authorizationUrl: payment.authorizationUrl,
+        accessCode: payment.accessCode,
+        ...getSafePaymentData(payment),
+    },
+    });
 };
 
 const initializePayment = async (req, res) => {
@@ -280,6 +311,7 @@ const initializePayment = async (req, res) => {
           amount: amountInKobo,
           reference: paymentReference,
           currency: "NGN",
+          callback_url: process.env.PAYSTACK_CALLBACK_URL,
           metadata: {
             bookingId: booking._id.toString(),
             guestId: req.guest._id.toString(),
@@ -293,10 +325,7 @@ const initializePayment = async (req, res) => {
         await payment.save();
       }
 
-      return respondWithError(res, error, {
-        reference: paymentReference,
-        paymentStatus: payment.paymentStatus,
-      });
+      return respondWithError(res, error);
     }
 
     const transaction = response.data?.data;
@@ -305,7 +334,7 @@ const initializePayment = async (req, res) => {
       await payment.save();
       return res.status(502).json({
         success: false,
-        message: response.data?.message || "Paystack could not initialize payment",
+        message: "Paystack could not initialize payment",
         reference: paymentReference,
         paymentStatus: payment.paymentStatus,
       });
@@ -325,12 +354,14 @@ const initializePayment = async (req, res) => {
     await payment.save();
 
     return res.status(200).json({
-      success: true,
-      message: "Payment initialized successfully",
-      authorizationUrl: payment.authorizationUrl,
-      accessCode: payment.accessCode,
-      reference: paymentReference,
-      payment,
+        success: true,
+        message: "Payment initialized successfully",
+        data: {
+            authorizationUrl: payment.authorizationUrl,
+            accessCode: payment.accessCode,
+            reference: payment.paymentReference,
+            paymentStatus: payment.paymentStatus,
+        },
     });
   } catch (error) {
     return respondWithError(res, error);
@@ -386,7 +417,7 @@ const verifyPayment = async (req, res) => {
       if (response.data?.status !== true || !transaction) {
         return res.status(502).json({
           success: false,
-          message: response.data?.message || "Could not verify payment with Paystack",
+            message: "Could not verify payment with Paystack",
         });
       }
     }
@@ -401,27 +432,33 @@ const verifyPayment = async (req, res) => {
       }
       if (result.kind === "review") {
         return res.status(409).json({
-          success: false,
-          message: "Payment succeeded but requires manual review",
-          payment: result.payment,
-          booking: result.booking,
-          reconciliationNote: result.note,
+            success: false,
+            message: "Payment succeeded but requires manual review",
+            data: {
+                payment: getSafePaymentData(result.payment),
+                booking: getSafeBookingData(result.booking),
+                reconciliationNote: result.note,
+            },
         });
       }
       if (result.kind === "refunded") {
         return res.status(409).json({
-          success: false,
-          message: "This payment has already been refunded",
-          payment: result.payment,
+            success: false,
+            message: "This payment has already been refunded",
+            data: {
+                payment: getSafePaymentData(result.payment),
+            },
         });
       }
 
-      return res.status(200).json({
+     return res.status(200).json({
         success: true,
         message: "Payment verified and booking confirmed",
-        payment: result.payment,
-        booking: result.booking,
-      });
+        data: {
+            payment: getSafePaymentData(result.payment),
+            booking: getSafeBookingData(result.booking),
+        },
+        });
     }
 
     const result = await markFailedPayment(payment, transaction);
@@ -433,17 +470,21 @@ const verifyPayment = async (req, res) => {
     }
 
     if (payment.paymentStatus === "Refunded") {
-      return res.status(409).json({
+     return res.status(409).json({
         success: false,
         message: "This payment has already been refunded",
-        payment,
-      });
+        data: {
+            payment: getSafePaymentData(payment),
+        },
+    });
     }
 
     return res.status(409).json({
-      success: false,
-      message: "Payment has not completed successfully",
-      paymentStatus: result.payment?.paymentStatus || payment.paymentStatus,
+        success: false,
+        message: "Payment has not completed successfully",
+        data: {
+            paymentStatus: result.payment?.paymentStatus || payment.paymentStatus,
+        },
     });
   } catch (error) {
     return respondWithError(res, error);
