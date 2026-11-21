@@ -57,6 +57,7 @@ const markForManualReview = async (payment, note, booking) => {
   return { kind: "review", payment, booking, note };
 };
 
+
 const finalizeSuccessfulPayment = async (payment, transaction) => {
   if (!transactionMatchesPayment(transaction, payment)) {
     return { kind: "mismatch" };
@@ -70,6 +71,7 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
     return { kind: "not_successful", status: transaction.status };
   }
 
+  // Record the successful payment first.
   payment.paymentStatus = "Successful";
   payment.paidAt = payment.paidAt || new Date();
   await payment.save();
@@ -80,32 +82,67 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
   });
 
   if (!booking) {
-    return markForManualReview(payment, "Booking not found for successful payment");
+    return markForManualReview(
+      payment,
+      "Booking not found for successful payment"
+    );
   }
 
+  // Only confirm a pending booking if its payment deadline has not passed.
   if (booking.bookingStatus === "Pending") {
+    const now = new Date();
+
     const update = await Booking.updateOne(
       {
         _id: booking._id,
         guest: payment.guest,
         bookingStatus: "Pending",
+        expiresAt: { $gt: now },
       },
-      { $set: { bookingStatus: "Confirmed" } }
+      {
+        $set: { bookingStatus: "Confirmed" },
+      }
     );
 
     if (update.modifiedCount === 1) {
-        booking = await Booking.findOne({
-            _id: payment.booking,
-            guest: payment.guest,
-        });
+      booking = await Booking.findById(booking._id);
 
-        return { kind: "confirmed", payment, booking };
+      return { kind: "confirmed", payment, booking };
     }
 
-    booking = await Booking.findOne({
-      _id: payment.booking,
-      guest: payment.guest,
-    });
+    // Re-fetch because another operation may have changed the booking.
+    booking = await Booking.findById(booking._id);
+  }
+
+  // If the booking is still pending but its deadline has passed,
+  // cancel it rather than confirming it.
+  if (booking?.bookingStatus === "Pending") {
+    const now = new Date();
+
+    const expiredUpdate = await Booking.updateOne(
+      {
+        _id: booking._id,
+        guest: payment.guest,
+        bookingStatus: "Pending",
+        $or: [
+          { expiresAt: { $lte: now } },
+          { expiresAt: null },
+        ],
+      },
+      {
+        $set: { bookingStatus: "Cancelled" },
+      }
+    );
+
+    if (expiredUpdate.modifiedCount === 1) {
+      booking = await Booking.findById(booking._id);
+
+      return markForManualReview(
+        payment,
+        "Payment succeeded after the booking payment deadline. Manual refund review required.",
+        booking
+      );
+    }
   }
 
   if (booking?.bookingStatus === "Confirmed") {
@@ -128,7 +165,9 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
         kind: "review",
         payment,
         booking,
-        note: payment.reconciliationNote || "Payment still requires manual review",
+        note:
+          payment.reconciliationNote ||
+          "Payment still requires manual review",
       };
     }
 
@@ -137,10 +176,13 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
 
   return markForManualReview(
     payment,
-    `Booking status is ${booking?.bookingStatus || "unavailable"} after successful payment`,
+    `Booking status is ${
+      booking?.bookingStatus || "unavailable"
+    } after successful payment`,
     booking
   );
 };
+
 
 const markFailedPayment = async (payment, transaction) => {
   if (!transactionMatchesPayment(transaction, payment)) {
@@ -249,6 +291,28 @@ const initializePayment = async (req, res) => {
     if (successfulPayment) {
       return sendExistingPayment(res, successfulPayment);
     }
+
+    // Check whether the payment deadline has expired
+  if (
+    !booking.expiresAt ||
+    booking.expiresAt <= new Date()
+  ) {
+    await Booking.updateOne(
+      {
+        _id: booking._id,
+        guest: req.guest._id,
+        bookingStatus: "Pending",
+      },
+      {
+        $set: { bookingStatus: "Cancelled" },
+      }
+    );
+
+  return res.status(400).json({
+    success: false,
+    message: "This booking has expired. Please create a new booking.",
+  });
+}
 
     if (booking.bookingStatus !== "Pending") {
       return res.status(400).json({

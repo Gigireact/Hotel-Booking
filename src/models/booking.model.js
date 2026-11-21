@@ -59,6 +59,11 @@ const bookingSchema = new mongoose.Schema(
       enum: ["Pending", "Confirmed", "Cancelled", "Completed"],
       default: "Pending",
     },
+
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

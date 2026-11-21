@@ -1,6 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const {
+  generalLimiter,
+  authLimiter,
+  paymentLimiter,
+} = require("./middlewares/rateLimiter");
 
 const authRoutes = require("./routes/auth.routes");
 const guestRoutes = require("./routes/guest.routes");
@@ -11,7 +16,24 @@ const paymentRoutes = require("./routes/payment.routes.js");
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(
   express.json({
     verify: (req, res, buffer) => {
@@ -22,6 +44,12 @@ app.use(
   })
 );
 app.use(morgan("dev"));
+
+app.use("/api", generalLimiter);
+
+app.use("/api/auth", authLimiter);
+app.use("/api/payment/initialize", paymentLimiter);
+app.use("/api/payment/verify", paymentLimiter);
 
 // Authentication routes
 app.use("/api/auth", authRoutes);
