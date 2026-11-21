@@ -1,7 +1,7 @@
 const Room = require("../models/room.model");
 const Hotel = require("../models/hotel.model");
 
-// CREATE ROOM
+
 const createRoom = async (req, res) => {
   try {
     const {
@@ -12,8 +12,12 @@ const createRoom = async (req, res) => {
       pricePerNight,
       capacity,
       amenities,
-      images,
     } = req.body;
+
+    // Get uploaded image URLs from Cloudinary
+    const images = req.files
+      ? req.files.map((file) => file.path)
+      : [];
 
     if (
       !hotel ||
@@ -66,12 +70,15 @@ const createRoom = async (req, res) => {
       room,
     });
   } catch (error) {
+    console.error("Create room error:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to create room",
     });
   }
 };
+
 
 // GET ALL ROOMS IN A HOTEL
 const getHotelRooms = async (req, res) => {

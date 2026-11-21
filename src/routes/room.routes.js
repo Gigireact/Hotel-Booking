@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router();
 
@@ -7,7 +8,10 @@ const {
   checkRoomAvailability,
 } = require("../controllers/room.controller");
 
-router.post("/", createRoom);
+const upload = require("../configs/cloudinaryStorage");
+// Create room with up to 5 images
+router.post("/", upload.array("images", 5), createRoom);
 router.get("/hotel/:hotelId", getHotelRooms);
 router.get("/hotel/:hotelId/availability", checkRoomAvailability);
+
 module.exports = router;
