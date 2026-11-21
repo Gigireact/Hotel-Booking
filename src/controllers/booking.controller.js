@@ -256,7 +256,76 @@ const getMyBookings = async (req, res) => {
   }
 };
 
+
+const getRoomAccessCode = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID",
+      });
+    }
+
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      guest: req.guest._id,
+    })
+      .select("+roomAccessCode")
+      .populate("room", "roomNumber roomType")
+      .populate("hotel", "name");
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    if (
+      booking.bookingStatus !== "Confirmed" ||
+      booking.idVerificationStatus !== "Verified"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Room access code is not available for this booking",
+      });
+    }
+
+    if (
+      !booking.roomAccessCode ||
+      !booking.roomAccessCodeExpiresAt ||
+      booking.roomAccessCodeExpiresAt <= new Date()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Room access code is unavailable or has expired",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Room access code retrieved successfully",
+      access: {
+        roomAccessCode: booking.roomAccessCode,
+        expiresAt: booking.roomAccessCodeExpiresAt,
+        roomNumber: booking.room?.roomNumber,
+        roomType: booking.room?.roomType,
+        hotelName: booking.hotel?.name,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve room access code",
+    });
+  }
+};
+
+
 module.exports = {
   createBooking,
   getMyBookings,
+  getRoomAccessCode,
 };

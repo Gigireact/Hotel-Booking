@@ -75,8 +75,28 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    roomAccessCode: {
+      type: String,
+      select: false,
+    },
+
+    roomAccessCodeExpiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
+);
+
+bookingSchema.index(
+  { roomAccessCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      roomAccessCode: { $type: "string" },
+    },
+  }
 );
 
 const Booking = mongoose.model("Booking", bookingSchema);

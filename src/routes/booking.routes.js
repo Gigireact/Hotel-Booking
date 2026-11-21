@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   createBooking,
   getMyBookings,
+  getRoomAccessCode,
 } = require("../controllers/booking.controller");
 
 const {
@@ -17,6 +18,7 @@ const uploadIdPhoto = require("../middlewares/idUpload.middleware");
 
 router.post("/", authenticateGuest, createBooking);
 router.get("/my-bookings", authenticateGuest, getMyBookings);
+router.get("/:bookingId/room-code", authenticateGuest, getRoomAccessCode);
 
 // Warm up the ID verification service
 router.post(
