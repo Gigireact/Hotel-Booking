@@ -120,7 +120,9 @@ const createBooking = async (req, res) => {
           bookingStatus: "Pending",
           $or: [
             {
-              idVerificationStatus: { $in: ["Pending", "NeedsReview"] },
+              idVerificationStatus: {
+                $in: ["Pending", "NeedsReview", "Rejected"],
+              },              
               idVerificationExpiresAt: { $lte: now },
             },
             {
@@ -180,8 +182,21 @@ const createBooking = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Booking created successfully. Please proceed to payment.",
-      booking,
+      message: "Booking created successfully. Please complete ID verification.",
+      booking: {
+        _id: booking._id,
+        hotel: booking.hotel,
+        room: booking.room,
+        checkInDate: booking.checkInDate,
+        checkOutDate: booking.checkOutDate,
+        numberOfGuests: booking.numberOfGuests,
+        numberOfNights: booking.numberOfNights,
+        totalAmount: booking.totalAmount,
+        bookingStatus: booking.bookingStatus,
+        idVerificationStatus: booking.idVerificationStatus,
+        idVerificationExpiresAt: booking.idVerificationExpiresAt,
+        createdAt: booking.createdAt,
+      },
     });
   } catch (error) {
     console.error("Create booking error:", error);

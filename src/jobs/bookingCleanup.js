@@ -14,7 +14,9 @@ const startBookingCleanup = () => {
           $or: [
             // ID verification deadline expired
             {
-              idVerificationStatus: { $in: ["Pending", "NeedsReview"] },
+              idVerificationStatus: {
+                $in: ["Pending", "NeedsReview", "Rejected"],
+              },
               idVerificationExpiresAt: { $lte: now },
             },
 

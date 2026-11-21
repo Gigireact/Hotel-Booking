@@ -295,18 +295,23 @@ const initializePayment = async (req, res) => {
     }
 
     // ID verification must be completed before payment
+    
     if (booking.idVerificationStatus !== "Verified") {
       return res.status(403).json({
         success: false,
         message:
           booking.idVerificationStatus === "NeedsReview"
-            ? "Your identity verification requires manual review before payment."
+            ? "Your ID photo could not be clearly verified. Please retake and upload another photo."
             : booking.idVerificationStatus === "Rejected"
-            ? "Your identity verification was rejected. Please contact support."
+            ? "Your ID verification was unsuccessful. Please review the instructions and try again, or contact support."
             : "Please complete identity verification before making payment.",
         idVerificationStatus: booking.idVerificationStatus,
+        canRetake: ["NeedsReview", "Rejected"].includes(
+          booking.idVerificationStatus
+        ),
       });
     }
+
 
     // Check whether the payment deadline has expired
     if (!booking.expiresAt || booking.expiresAt <= new Date()) {
