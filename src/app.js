@@ -13,6 +13,7 @@ const hotelRoutes = require("./routes/hotel.routes");
 const roomRoutes = require("./routes/room.routes");
 const bookingRoutes = require("./routes/booking.routes");
 const paymentRoutes = require("./routes/payment.routes.js");
+const serviceRequestRoutes = require("./routes/serviceRequest.routes");
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use("/api/hotels", hotelRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/requests", serviceRequestRoutes);
 
 
 app.get("/", (req, res) => {
