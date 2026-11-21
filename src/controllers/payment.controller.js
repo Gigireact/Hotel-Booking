@@ -1,6 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
+const { ensureRoomAccessCode } = require("../utils/roomAccessCode");
 
 const Payment = require("../models/payment.model");
 const Booking = require("../models/booking.model");
@@ -81,6 +82,14 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
     guest: payment.guest,
   });
 
+  if (!booking) {
+    return markForManualReview(
+      payment,
+      "Payment succeeded, but the associated booking could not be found.",
+      null
+    );
+  }
+
   // Never confirm a booking without successful ID verification
   if (booking.idVerificationStatus !== "Verified") {
     return markForManualReview(
@@ -107,7 +116,7 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
     );
 
     if (update.modifiedCount === 1) {
-      booking = await Booking.findById(booking._id);
+      booking = await ensureRoomAccessCode(booking._id);
 
       return { kind: "confirmed", payment, booking };
     }
@@ -173,8 +182,9 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
       };
     }
 
-    return { kind: "confirmed", payment, booking };
-  }
+  booking = await ensureRoomAccessCode(booking._id);
+
+  return { kind: "confirmed", payment, booking };  }
 
   return markForManualReview(
     payment,

@@ -66,6 +66,17 @@ const bookingSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    preArrivalCheckInStatus: {
+      type: String,
+      enum: ["NotStarted", "Completed"],
+      default: "NotStarted",
+    },
+
+    preArrivalCheckedInAt: {
+      type: Date,
+      default: null,
+    },
+
     idVerificationExpiresAt: {
       type: Date,
       default: null,

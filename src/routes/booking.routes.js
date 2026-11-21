@@ -6,6 +6,7 @@ const {
   createBooking,
   getMyBookings,
   getRoomAccessCode,
+  completePreArrivalCheckIn,
 } = require("../controllers/booking.controller");
 
 const {
@@ -33,6 +34,12 @@ router.post(
   authenticateGuest,
   uploadIdPhoto,
   verifyGuestId
+);
+
+router.patch(
+  "/:bookingId/pre-arrival-check-in",
+  authenticateGuest,
+  completePreArrivalCheckIn
 );
 
 module.exports = router;

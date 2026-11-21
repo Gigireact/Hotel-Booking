@@ -324,8 +324,84 @@ const getRoomAccessCode = async (req, res) => {
 };
 
 
+const completePreArrivalCheckIn = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID",
+      });
+    }
+
+    const now = new Date();
+
+    const booking = await Booking.findOneAndUpdate(
+      {
+        _id: bookingId,
+        guest: req.guest._id,
+        bookingStatus: "Confirmed",
+        idVerificationStatus: "Verified",
+        preArrivalCheckInStatus: "NotStarted",
+        checkOutDate: { $gt: now },
+      },
+      {
+        $set: {
+          preArrivalCheckInStatus: "Completed",
+          preArrivalCheckedInAt: now,
+        },
+      },
+      { new: true }
+    ).select(
+      "checkInDate checkOutDate bookingStatus idVerificationStatus preArrivalCheckInStatus preArrivalCheckedInAt"
+    );
+
+    if (!booking) {
+      const existingBooking = await Booking.findOne({
+        _id: bookingId,
+        guest: req.guest._id,
+      });
+
+      if (!existingBooking) {
+        return res.status(404).json({
+          success: false,
+          message: "Booking not found",
+        });
+      }
+
+      if (existingBooking.preArrivalCheckInStatus === "Completed") {
+        return res.status(409).json({
+          success: false,
+          message: "Pre-arrival check-in has already been completed",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Booking must be confirmed, ID verified, and before checkout to complete pre-arrival check-in",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Pre-arrival check-in completed successfully",
+      booking,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to complete pre-arrival check-in",
+    });
+  }
+};
+
+
+
 module.exports = {
   createBooking,
   getMyBookings,
   getRoomAccessCode,
+  completePreArrivalCheckIn,
 };
