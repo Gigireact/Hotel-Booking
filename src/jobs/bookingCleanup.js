@@ -6,10 +6,30 @@ const startBookingCleanup = () => {
   // Run every minute
   cron.schedule("* * * * *", async () => {
     try {
+      const now = new Date();
+
       const result = await Booking.updateMany(
         {
           bookingStatus: "Pending",
-          expiresAt: { $lte: new Date() },
+          $or: [
+            // ID verification deadline expired
+            {
+              idVerificationStatus: { $in: ["Pending", "NeedsReview"] },
+              idVerificationExpiresAt: { $lte: now },
+            },
+
+            // Payment deadline expired after verification
+            {
+              idVerificationStatus: "Verified",
+              expiresAt: { $lte: now },
+            },
+
+            // Support older bookings without an ID status
+            {
+              idVerificationStatus: { $exists: false },
+              expiresAt: { $lte: now },
+            },
+          ],
         },
         {
           $set: { bookingStatus: "Cancelled" },

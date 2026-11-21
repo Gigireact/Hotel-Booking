@@ -36,6 +36,7 @@ app.use(
 );
 app.use(
   express.json({
+    limit: "100kb",
     verify: (req, res, buffer) => {
       if (req.originalUrl.split("?")[0] === "/api/payment/webhook") {
         req.rawBody = Buffer.from(buffer);

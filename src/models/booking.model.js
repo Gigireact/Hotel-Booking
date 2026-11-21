@@ -60,6 +60,17 @@ const bookingSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    idVerificationStatus: {
+      type: String,
+      enum: ["Pending", "Verified", "NeedsReview", "Rejected"],
+      default: "Pending",
+    },
+
+    idVerificationExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
     expiresAt: {
       type: Date,
       default: null,

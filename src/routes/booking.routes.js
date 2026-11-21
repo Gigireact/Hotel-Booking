@@ -7,9 +7,30 @@ const {
   getMyBookings,
 } = require("../controllers/booking.controller");
 
+const {
+  warmUpIdCheck,
+  verifyGuestId,
+} = require("../controllers/idVerification.controller");
+
 const authenticateGuest = require("../middlewares/auth.middleware");
+const uploadIdPhoto = require("../middlewares/idUpload.middleware");
 
 router.post("/", authenticateGuest, createBooking);
 router.get("/my-bookings", authenticateGuest, getMyBookings);
+
+// Warm up the ID verification service
+router.post(
+  "/:bookingId/id-verification/warm",
+  authenticateGuest,
+  warmUpIdCheck
+);
+
+// Upload and verify guest ID
+router.post(
+  "/:bookingId/id-verification",
+  authenticateGuest,
+  uploadIdPhoto,
+  verifyGuestId
+);
 
 module.exports = router;

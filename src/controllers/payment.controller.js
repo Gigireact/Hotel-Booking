@@ -81,10 +81,12 @@ const finalizeSuccessfulPayment = async (payment, transaction) => {
     guest: payment.guest,
   });
 
-  if (!booking) {
+  // Never confirm a booking without successful ID verification
+  if (booking.idVerificationStatus !== "Verified") {
     return markForManualReview(
       payment,
-      "Booking not found for successful payment"
+      "Payment succeeded without completed ID verification. Manual review required.",
+      booking
     );
   }
 
@@ -292,27 +294,38 @@ const initializePayment = async (req, res) => {
       return sendExistingPayment(res, successfulPayment);
     }
 
-    // Check whether the payment deadline has expired
-  if (
-    !booking.expiresAt ||
-    booking.expiresAt <= new Date()
-  ) {
-    await Booking.updateOne(
-      {
-        _id: booking._id,
-        guest: req.guest._id,
-        bookingStatus: "Pending",
-      },
-      {
-        $set: { bookingStatus: "Cancelled" },
-      }
-    );
+    // ID verification must be completed before payment
+    if (booking.idVerificationStatus !== "Verified") {
+      return res.status(403).json({
+        success: false,
+        message:
+          booking.idVerificationStatus === "NeedsReview"
+            ? "Your identity verification requires manual review before payment."
+            : booking.idVerificationStatus === "Rejected"
+            ? "Your identity verification was rejected. Please contact support."
+            : "Please complete identity verification before making payment.",
+        idVerificationStatus: booking.idVerificationStatus,
+      });
+    }
 
-  return res.status(400).json({
-    success: false,
-    message: "This booking has expired. Please create a new booking.",
-  });
-}
+    // Check whether the payment deadline has expired
+    if (!booking.expiresAt || booking.expiresAt <= new Date()) {
+      await Booking.updateOne(
+        {
+          _id: booking._id,
+          guest: req.guest._id,
+          bookingStatus: "Pending",
+        },
+        {
+          $set: { bookingStatus: "Cancelled" },
+        }
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: "This booking has expired. Please create a new booking.",
+      });
+    }
 
     if (booking.bookingStatus !== "Pending") {
       return res.status(400).json({

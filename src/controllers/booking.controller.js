@@ -3,18 +3,11 @@ const Booking = require("../models/booking.model");
 const Room = require("../models/room.model");
 const Hotel = require("../models/hotel.model");
 
-
 const createBooking = async (req, res) => {
   let session;
 
   try {
-    const {
-      hotel,
-      room,
-      checkInDate,
-      checkOutDate,
-      numberOfGuests,
-    } = req.body;
+    const { hotel, room, checkInDate, checkOutDate, numberOfGuests } = req.body;
 
     if (
       !hotel ||
@@ -74,9 +67,7 @@ const createBooking = async (req, res) => {
 
     const millisecondsPerDay = 1000 * 60 * 60 * 24;
 
-    const numberOfNights = Math.ceil(
-      (checkOut - checkIn) / millisecondsPerDay
-    );
+    const numberOfNights = Math.ceil((checkOut - checkIn) / millisecondsPerDay);
 
     session = await mongoose.startSession();
 
@@ -105,7 +96,7 @@ const createBooking = async (req, res) => {
         {
           new: true,
           session,
-        }
+        },
       );
 
       if (!existingRoom) {
@@ -120,20 +111,32 @@ const createBooking = async (req, res) => {
         throw error;
       }
 
-      // Cancel expired pending bookings for this room
+      // Cancel bookings whose verification or payment deadline has expired
+      const now = new Date();
+
       await Booking.updateMany(
         {
           room,
           bookingStatus: "Pending",
           $or: [
-            { expiresAt: { $lte: new Date() } },
-            { expiresAt: null },
+            {
+              idVerificationStatus: { $in: ["Pending", "NeedsReview"] },
+              idVerificationExpiresAt: { $lte: now },
+            },
+            {
+              idVerificationStatus: "Verified",
+              expiresAt: { $lte: now },
+            },
+            {
+              idVerificationStatus: { $exists: false },
+              expiresAt: { $lte: now },
+            },
           ],
         },
         {
           $set: { bookingStatus: "Cancelled" },
         },
-        { session }
+        { session },
       );
 
       // Check for overlapping bookings
@@ -150,11 +153,9 @@ const createBooking = async (req, res) => {
         throw error;
       }
 
-      const totalAmount =
-        existingRoom.pricePerNight * numberOfNights;
+      const totalAmount = existingRoom.pricePerNight * numberOfNights;
 
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
+      const idVerificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
       const createdBookings = await Booking.create(
         [
           {
@@ -167,10 +168,11 @@ const createBooking = async (req, res) => {
             numberOfNights,
             totalAmount,
             bookingStatus: "Pending",
-            expiresAt,
+            idVerificationExpiresAt,
+            expiresAt: null,
           },
         ],
-        { session }
+        { session },
       );
 
       booking = createdBookings[0];
@@ -181,7 +183,6 @@ const createBooking = async (req, res) => {
       message: "Booking created successfully. Please proceed to payment.",
       booking,
     });
-
   } catch (error) {
     console.error("Create booking error:", error);
 
@@ -208,15 +209,12 @@ const createBooking = async (req, res) => {
       success: false,
       message: "Unable to create booking. Please try again later.",
     });
-
   } finally {
     if (session) {
       await session.endSession();
     }
   }
 };
-
-
 
 // GET ALL BOOKINGS FOR THE LOGGED-IN GUEST
 const getMyBookings = async (req, res) => {
@@ -234,15 +232,14 @@ const getMyBookings = async (req, res) => {
       bookings,
     });
   } catch (error) {
-  console.error("Get bookings error:", error);
+    console.error("Get bookings error:", error);
 
-  return res.status(500).json({
-    success: false,
-    message: "Unable to retrieve bookings. Please try again later.",
-  });
-}
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve bookings. Please try again later.",
+    });
+  }
 };
-
 
 module.exports = {
   createBooking,
