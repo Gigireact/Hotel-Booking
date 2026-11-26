@@ -38,9 +38,6 @@ const uploadIdPhoto = (req, res, next) => {
       });
     }
 
-    console.log("MULTER BODY:", req.body);
-console.log("MULTER FILE RECEIVED:", !!req.file);
-
     next();
   });
 };

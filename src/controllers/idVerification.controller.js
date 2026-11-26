@@ -20,8 +20,6 @@ const verifyGuestId = async (req, res) => {
     const { bookingId } = req.params;
     const { idType } = req.body;
 
-    console.log("Received ID type:", JSON.stringify(idType));
-
     if (!mongoose.Types.ObjectId.isValid(bookingId)) {
       return res.status(400).json({
         success: false,
@@ -35,7 +33,6 @@ const verifyGuestId = async (req, res) => {
       national_id: "NIN",
     };
 
-    console.log("ID TYPE RECEIVED:", req.body);
 
     const normalizedIdType = idTypeMapping[idType];
 
@@ -136,7 +133,9 @@ const verifyGuestId = async (req, res) => {
       failureReason: result.failure_reason || null,
       message: result.message,
       processingTimeMs: result.processing_time_ms,
-      canRetake: booking.idVerificationStatus === "Rejected",
+      canRetake: ["Rejected", "NeedsReview"].includes(
+        booking.idVerificationStatus
+      ),
     });
   } catch (error) {
     // Never log the uploaded photo, guest name, or request body
