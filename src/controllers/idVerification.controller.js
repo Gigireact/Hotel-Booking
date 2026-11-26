@@ -27,7 +27,15 @@ const verifyGuestId = async (req, res) => {
       });
     }
 
-    if (!["NIN", "DRIVERS_LICENSE", "PASSPORT"].includes(idType)) {
+    const idTypeMapping = {
+      passport: "PASSPORT",
+      drivers_license: "DRIVERS_LICENSE",
+      national_id: "NIN",
+    };
+
+    const normalizedIdType = idTypeMapping[idType];
+
+    if (!normalizedIdType) {
       return res.status(400).json({
         success: false,
         message: "Please select a supported ID type.",
@@ -86,7 +94,7 @@ const verifyGuestId = async (req, res) => {
 
     const result = await verifyId({
       photoBuffer: req.file.buffer,
-      idType,
+      idType: normalizedIdType,
       guestName,
     });
 
@@ -119,12 +127,12 @@ const verifyGuestId = async (req, res) => {
     await booking.save();
 
     return res.status(200).json({
-      success: false,
+      success: true,
       idVerificationStatus: booking.idVerificationStatus,
       failureReason: result.failure_reason || null,
       message: result.message,
       processingTimeMs: result.processing_time_ms,
-      canRetake: true,
+      canRetake: booking.idVerificationStatus === "Rejected",
     });
   } catch (error) {
     // Never log the uploaded photo, guest name, or request body
