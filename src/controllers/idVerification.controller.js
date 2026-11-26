@@ -35,6 +35,8 @@ const verifyGuestId = async (req, res) => {
       national_id: "NIN",
     };
 
+    console.log("ID TYPE RECEIVED:", req.body);
+
     const normalizedIdType = idTypeMapping[idType];
 
     if (!normalizedIdType) {
