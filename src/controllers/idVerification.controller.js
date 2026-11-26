@@ -20,6 +20,8 @@ const verifyGuestId = async (req, res) => {
     const { bookingId } = req.params;
     const { idType } = req.body;
 
+    console.log("Received ID type:", JSON.stringify(idType));
+
     if (!mongoose.Types.ObjectId.isValid(bookingId)) {
       return res.status(400).json({
         success: false,
